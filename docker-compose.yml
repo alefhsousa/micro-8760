@@ -1,0 +1,66 @@
+version: "3"
+
+services:
+  mysql.monolito:
+    image: mysql:5.7
+    restart: on-failure
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: eats
+  mysql.pagamento:
+    image: mysql:5.7
+    restart: on-failure
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: caelum123
+      MYSQL_DATABASE: eats_pagamento
+      MYSQL_USER: pagamento
+      MYSQL_PASSWORD: pagamento123
+  mongo.distancia:
+    image: mongo:3.6
+    restart: on-failure
+    ports:
+      - "27018:27017"
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    restart: on-failure
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: eats
+      RABBITMQ_DEFAULT_PASS: caelum12345
+
+  mongo-express:
+    image: mongo-express
+    ports:
+      - 8091:8081
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: alefh
+      ME_CONFIG_MONGODB_SERVER: mongo.distancia
+      ME_CONFIG_BASICAUTH_PASSWORD: alefh
+      ME_CONFIG_MONGODB_PORT: 27017
+    depends_on:
+      - mongo.distancia
+
+  consul:
+    image: consul:1.5
+    restart: on-failure
+    ports:
+      - "8500:8500"
+      - "8600:8600"
+    environment:
+      CONSUL_BIND_INTERFACE: eth0
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9410:9410"
+      - "9411:9411"
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBIT_URI: "amqp://eats:caelum12345@rabbitmq:5672"
