@@ -59,7 +59,7 @@ services:
       - fj33
 
   service-registry:
-    image: tst/service-registry
+    image: alefh/fj33-service-registry
     restart: on-failure
     ports:
       - "8761:8761"
