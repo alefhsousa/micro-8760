@@ -1,16 +1,19 @@
-version: "3"
+version: "3.7"
 
 services:
   mysql.monolito:
-    image: mysql:5.7
+    image: mysql:8.0
     restart: on-failure
     ports:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: eats
+    networks:
+      - fj33
+
   mysql.pagamento:
-    image: mysql:5.7
+    image: alefh/fj33-mysql-pagamento:1.0
     restart: on-failure
     ports:
       - "3307:3306"
@@ -19,11 +22,30 @@ services:
       MYSQL_DATABASE: eats_pagamento
       MYSQL_USER: pagamento
       MYSQL_PASSWORD: pagamento123
+    networks:
+      - fj33
+
   mongo.distancia:
     image: mongo:3.6
     restart: on-failure
     ports:
       - "27018:27017"
+    networks:
+      - fj33
+
+  mongo-express:
+    image: mongo-express
+    ports:
+      - 8091:8081
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo.distancia
+      ME_CONFIG_MONGODB_PORT: 27017
+    depends_on:
+      - mongo.distancia
+    restart: on-failure
+    networks:
+      - fj33
+
   rabbitmq:
     image: "rabbitmq:3-management"
     restart: on-failure
@@ -33,34 +55,136 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: eats
       RABBITMQ_DEFAULT_PASS: caelum12345
+    networks:
+      - fj33
 
-  mongo-express:
-    image: mongo-express
-    ports:
-      - 8091:8081
-    environment:
-      ME_CONFIG_BASICAUTH_USERNAME: alefh
-      ME_CONFIG_MONGODB_SERVER: mongo.distancia
-      ME_CONFIG_BASICAUTH_PASSWORD: alefh
-      ME_CONFIG_MONGODB_PORT: 27017
-    depends_on:
-      - mongo.distancia
-
-  consul:
-    image: consul:1.5
+  service-registry:
+    image: tst/service-registry
     restart: on-failure
     ports:
-      - "8500:8500"
-      - "8600:8600"
-    environment:
-      CONSUL_BIND_INTERFACE: eth0
+      - "8761:8761"
+    networks:
+      - fj33
 
-  zipkin:
-    image: openzipkin/zipkin
+  config-server:
+    image: alefh/fj33-config-server
+    restart: on-failure
     ports:
-      - "9410:9410"
-      - "9411:9411"
+      - "8888:8888"
+    networks:
+      - fj33
+
+  hystrix-dashboard:
+    image: alefh/fj33-hystrix-dashboard
+    restart: on-failure
+    ports:
+      - "7777:7777"
+    networks:
+      - fj33
+
+  turbine:
+    image: alefh/fj33-turbine
+    restart: on-failure
+    ports:
+      - "7776:7776"
     depends_on:
+      - config-server
+      - service-registry
       - rabbitmq
     environment:
-      RABBIT_URI: "amqp://eats:caelum12345@rabbitmq:5672"
+      RABBIT_HOST: rabbitmq
+      CONFIG_HOST: config-server
+      DISCOVERY_HOST: service-registry
+      DISCOVERY_PORT: 8761
+    networks:
+      - fj33
+
+  monolito:
+    image: alefh/fj33-eats-monolito-modular
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    depends_on:
+      - config-server
+      - service-registry
+      - mysql.monolito
+    environment:
+      CONFIG_HOST: config-server
+      DISCOVERY_HOST: service-registry
+      DISCOVERY_PORT: 8761
+      MYSQL_HOST: mysql.monolito
+      RABBIT_HOST: rabbitmq
+    networks:
+      - fj33
+
+  pagamento:
+    image: alefh/fj33-eats-pagamento-service
+    restart: on-failure
+    ports:
+      - "8081:8081"
+    depends_on:
+      - config-server
+      - service-registry
+      - mysql.pagamento
+    environment:
+      CONFIG_HOST: config-server
+      DISCOVERY_HOST: service-registry
+      DISCOVERY_PORT: 8761
+      MYSQL_HOST: mysql.pagamento
+      RABBIT_HOST: rabbitmq
+    networks:
+      - fj33
+
+  gateway:
+    image: alefh/fj33-api-gateway
+    restart: on-failure
+    ports:
+      - "9999:9999"
+    depends_on:
+      - config-server
+      - service-registry
+      - rabbitmq
+    environment:
+      CONFIG_HOST: config-server
+      DISCOVERY_HOST: service-registry
+      DISCOVERY_PORT: 8761
+      MYSQL_HOST: mysql.pagamento
+    networks:
+      - fj33
+
+  distancia:
+    image: alefh/fj33-eats-distancia-service
+    restart: on-failure
+    ports:
+      - "8082:8082"
+    depends_on:
+      - config-server
+      - service-registry
+      - mongo.distancia
+    environment:
+      CONFIG_HOST: config-server
+      DISCOVERY_HOST: service-registry
+      DISCOVERY_PORT: 8761
+      DB_HOST: mongo.distancia
+    networks:
+      - fj33
+
+  notafiscal:
+    image: alefh/fj33-eats-nota-fiscal-service
+    restart: on-failure
+    ports:
+      - "8083:8083"
+    depends_on:
+      - config-server
+      - service-registry
+      - rabbitmq
+    environment:
+      CONFIG_HOST: config-server
+      DISCOVERY_HOST: service-registry
+      DISCOVERY_PORT: 8761
+      RABBIT_HOST: rabbitmq
+    networks:
+      - fj33
+
+networks:
+  fj33:
