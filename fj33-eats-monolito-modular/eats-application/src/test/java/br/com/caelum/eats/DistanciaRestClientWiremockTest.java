@@ -1,6 +1,7 @@
 package br.com.caelum.eats;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +14,7 @@ import br.com.caelum.eats.administrativo.TipoDeCozinha;
 import br.com.caelum.eats.restaurante.DistanciaRestClient;
 import br.com.caelum.eats.restaurante.Restaurante;
 
+@Ignore
 @SpringBootTest
 @RunWith(SpringRunner.class)
 @AutoConfigureStubRunner(ids = "br.com.caelum:eats-distancia-service:+:stubs:9992", stubsMode = StubsMode.LOCAL)
